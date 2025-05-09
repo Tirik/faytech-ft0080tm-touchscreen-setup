@@ -34,7 +34,7 @@ fi
 
 # Обновление системы
 echo "Обновление системы..."
-apt update || { echo "Ошибка при обновлении системы"; exit 1; }
+apt update || { echo "Ошибка при обновления системы"; exit 1; }
 
 # Установка необходимых пакетов
 echo "Установка пакетов xinput и evtest..."
@@ -65,7 +65,7 @@ fi
 # Создание правил udev для сенсорного экрана
 echo "Создание файла правил udev 99-touchscreen.rules..."
 cat > /etc/udev/rules.d/99-touchscreen.rules << EOL
-ACTION=="add", SUBSYSTEM=="input", ATTRS{idVendor}=="0eef", ATTRS{idProduct)=="0001", ENV{ID_INPUT}="1", ENV{ID_INPUT_TOUCHSCREEN}="1"
+ACTION=="add", SUBSYSTEM=="input", ATTRS{idVendor}=="0eef", ATTRS{idProduct}=="0001", ENV{ID_INPUT}="1", ENV{ID_INPUT_TOUCHSCREEN}="1"
 EOL
 if [[ $? -ne 0 ]]; then
     echo "Ошибка при создании файла правил udev"
@@ -76,18 +76,31 @@ fi
 echo "Перезагрузка правил udev..."
 udevadm control --reload-rules && udevadm trigger || { echo "Ошибка при перезагрузке правил udev"; exit 1; }
 
-# Проверка работы сенсорного экрана
-echo "Проверка сенсорного экрана..."
-TOUCH_FOUND=false
+# Автоматическое определение устройства сенсорного экрана
+echo "Поиск сенсорного экрана..."
+TOUCH_DEVICE=""
 for event in /dev/input/event*; do
-    if command -v evtest >/dev/null && evtest --query "$event" 2>/dev/null; then
-        echo "Сенсорный экран обнаружен на $event и отвечает."
-        TOUCH_FOUND=true
-        break
+    if [ -e "$event" ]; then
+        DEVICE_NAME=$(cat /sys/class/input/$(basename "$event")/device/name 2>/dev/null)
+        if [[ "$DEVICE_NAME" == *"eGalax Inc. USB TouchController Touchscreen"* ]]; then
+            TOUCH_DEVICE="$event"
+            echo "Сенсорный экран найден: $TOUCH_DEVICE ($DEVICE_NAME)"
+            break
+        fi
     fi
 done
-if ! $TOUCH_FOUND; then
-    echo "Внимание: Сенсорный экран не отвечает. Попробуйте перезагрузить систему или проверить подключение."
+
+# Проверка активности сенсорного экрана
+if [ -n "$TOUCH_DEVICE" ]; then
+    echo "Проверка активности сенсорного экрана на $TOUCH_DEVICE..."
+    if command -v evtest >/dev/null && evtest --query "$TOUCH_DEVICE" 2>/dev/null; then
+        echo "Сенсорный экран активен и отвечает."
+    else
+        echo "Внимание: Сенсорный экран не отвечает на $TOUCH_DEVICE. Попробуйте перезагрузить систему."
+    fi
+else
+    echo "Ошибка: Не удалось найти сенсорный экран. Проверьте подключение или выполните 'evtest' для диагностики."
+    exit 1
 fi
 
 # Восстановление прав лог-файла
