@@ -2,6 +2,11 @@
 
 # Логирование выполнения скрипта
 LOG_FILE="/var/log/faytech_touchscreen_setup.log"
+
+# Создание лог-файла с правильными правами
+sudo touch "$LOG_FILE"
+sudo chmod 666 "$LOG_FILE"  # Временное изменение прав для записи
+
 exec > >(tee -a "$LOG_FILE")
 exec 2>&1
 
@@ -19,6 +24,12 @@ echo "Проверка подключения сенсорного экрана.
 if ! lsusb | grep -q "0eef"; then
     echo "Ошибка: Сенсорный экран faytech (idVendor: 0eef) не обнаружен. Убедитесь, что устройство подключено."
     exit 1
+fi
+
+# Проверка версии ОС
+OS_VERSION=$(cat /etc/os-release | grep VERSION_CODENAME | cut -d'=' -f2)
+if [[ "$OS_VERSION" != "bullseye" && "$OS_VERSION" != "bookworm" ]]; then
+    echo "Внимание: Скрипт протестирован на Raspberry Pi OS Bullseye и Bookworm."
 fi
 
 # Запрос подтверждения у пользователя
@@ -72,9 +83,9 @@ fi
 echo "Перезагрузка правил udev..."
 udevadm control --reload-rules && udevadm trigger || { echo "Ошибка при перезагрузке правил udev"; exit 1; }
 
-# Проверка работы сенсорного экрана с помощью evtest
+# Проверка работы сенсорного экрана
 echo "Проверка сенсорного экрана..."
-if evtest --query /dev/input/event4 2>/dev/null; then
+if command -v evtest >/dev/null && evtest --query /dev/input/event4 2>/dev/null; then
     echo "Сенсорный экран обнаружен и отвечает."
 else
     echo "Внимание: Сенсорный экран не отвечает. Попробуйте перезагрузить систему или проверить подключение."
@@ -84,9 +95,12 @@ fi
 read -p "Хотите запустить калибровку сенсорного экрана сейчас? (y/n): " calibrate
 if [[ "$calibrate" == "y" || "$calibrate" == "Y" ]]; then
     echo "Запуск калибровки сенсорного экрана..."
-    xinput_calibrator
+    xinput_calibrator || echo "Ошибка: Не удалось запустить калибровку. Проверьте подключение монитора."
     echo "Следуйте инструкциям на экране для калибровки."
 fi
+
+# Восстановление прав лог-файла
+sudo chmod 644 "$LOG_FILE"
 
 echo "Настройка сенсорного экрана faytech FT0080TM завершена!"
 echo "Лог выполнения сохранен в $LOG_FILE"
