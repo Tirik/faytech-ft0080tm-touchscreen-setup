@@ -37,8 +37,8 @@ echo "Обновление системы..."
 apt update || { echo "Ошибка при обновлении системы"; exit 1; }
 
 # Установка необходимых пакетов
-echo "Установка пакетов xinput, evtest и xinput-calibrator..."
-apt install -y xinput evtest xinput-calibrator || { echo "Ошибка при установке пакетов"; exit 1; }
+echo "Установка пакетов xinput и evtest..."
+apt install -y xinput evtest || { echo "Ошибка при установке пакетов"; exit 1; }
 
 # Создание директории для конфигурации X11
 echo "Создание директории /etc/X11/xorg.conf.d..."
@@ -78,16 +78,17 @@ udevadm control --reload-rules && udevadm trigger || { echo "Ошибка при
 
 # Проверка работы сенсорного экрана
 echo "Проверка сенсорного экрана..."
-if command -v evtest >/dev/null && evtest --query /dev/input/event4 2>/dev/null; then
-    echo "Сенсорный экран обнаружен и отвечает."
-else
+TOUCH_FOUND=false
+for event in /dev/input/event*; do
+    if command -v evtest >/dev/null && evtest --query "$event" 2>/dev/null; then
+        echo "Сенсорный экран обнаружен на $event и отвечает."
+        TOUCH_FOUND=true
+        break
+    fi
+done
+if ! $TOUCH_FOUND; then
     echo "Внимание: Сенсорный экран не отвечает. Попробуйте перезагрузить систему или проверить подключение."
 fi
-
-# Автоматический запуск калибровки
-echo "Запуск калибровки сенсорного экрана..."
-xinput_calibrator || echo "Ошибка: Не удалось запустить калибровку. Проверьте подключение монитора."
-echo "Следуйте инструкциям на экране для калибровки."
 
 # Восстановление прав лог-файла
 sudo chmod 644 "$LOG_FILE"
