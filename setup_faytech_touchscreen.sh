@@ -34,7 +34,7 @@ fi
 
 # Обновление системы
 echo "Обновление системы..."
-apt update || { echo "Ошибка при обновления системы"; exit 1; }
+apt update || { echo "Ошибка при обновлении системы"; exit 1; }
 
 # Установка необходимых пакетов
 echo "Установка пакетов xinput и evtest..."
@@ -65,7 +65,7 @@ fi
 # Создание правил udev для сенсорного экрана
 echo "Создание файла правил udev 99-touchscreen.rules..."
 cat > /etc/udev/rules.d/99-touchscreen.rules << EOL
-ACTION=="add", SUBSYSTEM=="input", ATTRS{idVendor}=="0eef", ATTRS{idProduct}=="0001", ENV{ID_INPUT}="1", ENV{ID_INPUT_TOUCHSCREEN}="1"
+ACTION=="add", SUBSYSTEM=="input", ATTRS{idVendor}=="0eef", ATTRS{idProduct)=="0001", ENV{ID_INPUT}="1", ENV{ID_INPUT_TOUCHSCREEN}="1"
 EOL
 if [[ $? -ne 0 ]]; then
     echo "Ошибка при создании файла правил udev"
@@ -93,7 +93,7 @@ done
 # Проверка активности сенсорного экрана
 if [ -n "$TOUCH_DEVICE" ]; then
     echo "Проверка активности сенсорного экрана на $TOUCH_DEVICE..."
-    if command -v evtest >/dev/null && evtest --query "$TOUCH_DEVICE" 2>/dev/null; then
+    if command -v evtest >/dev/null && sudo evtest "$TOUCH_DEVICE" --grab --timeout=1 2>/dev/null; then
         echo "Сенсорный экран активен и отвечает."
     else
         echo "Внимание: Сенсорный экран не отвечает на $TOUCH_DEVICE. Попробуйте перезагрузить систему."
