@@ -32,13 +32,6 @@ if [[ "$OS_VERSION" != "bullseye" && "$OS_VERSION" != "bookworm" ]]; then
     echo "Внимание: Скрипт протестирован на Raspberry Pi OS Bullseye и Bookworm."
 fi
 
-# Запрос подтверждения у пользователя
-read -p "Вы хотите настроить сенсорный экран faytech FT0080TM? (y/n): " confirm
-if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-    echo "Установка отменена."
-    exit 0
-fi
-
 # Обновление системы
 echo "Обновление системы..."
 apt update || { echo "Ошибка при обновлении системы"; exit 1; }
@@ -72,7 +65,7 @@ fi
 # Создание правил udev для сенсорного экрана
 echo "Создание файла правил udev 99-touchscreen.rules..."
 cat > /etc/udev/rules.d/99-touchscreen.rules << EOL
-ACTION=="add", SUBSYSTEM=="input", ATTRS{idVendor}=="0eef", ATTRS{idProduct}=="0001", ENV{ID_INPUT}="1", ENV{ID_INPUT_TOUCHSCREEN}="1"
+ACTION=="add", SUBSYSTEM=="input", ATTRS{idVendor}=="0eef", ATTRS{idProduct)=="0001", ENV{ID_INPUT}="1", ENV{ID_INPUT_TOUCHSCREEN}="1"
 EOL
 if [[ $? -ne 0 ]]; then
     echo "Ошибка при создании файла правил udev"
@@ -91,13 +84,10 @@ else
     echo "Внимание: Сенсорный экран не отвечает. Попробуйте перезагрузить систему или проверить подключение."
 fi
 
-# Предложение калибровки
-read -p "Хотите запустить калибровку сенсорного экрана сейчас? (y/n): " calibrate
-if [[ "$calibrate" == "y" || "$calibrate" == "Y" ]]; then
-    echo "Запуск калибровки сенсорного экрана..."
-    xinput_calibrator || echo "Ошибка: Не удалось запустить калибровку. Проверьте подключение монитора."
-    echo "Следуйте инструкциям на экране для калибровки."
-fi
+# Автоматический запуск калибровки
+echo "Запуск калибровки сенсорного экрана..."
+xinput_calibrator || echo "Ошибка: Не удалось запустить калибровку. Проверьте подключение монитора."
+echo "Следуйте инструкциям на экране для калибровки."
 
 # Восстановление прав лог-файла
 sudo chmod 644 "$LOG_FILE"
