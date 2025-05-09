@@ -37,19 +37,20 @@ echo "Обновление системы..."
 apt update || { echo "Ошибка при обновлении системы"; exit 1; }
 
 # Установка необходимых пакетов
-echo "Установка пакетов xinput и evtest..."
-apt install -y xinput evtest || { echo "Ошибка при установке пакетов"; exit 1; }
+echo "Установка пакетов xinput, evtest и libinput..."
+apt install -y xinput evtest libinput-bin || { echo "Ошибка при установке пакетов"; exit 1; }
 
 # Создание директории для конфигурации X11
 echo "Создание директории /etc/X11/xorg.conf.d..."
 mkdir -p /etc/X11/xorg.conf.d || { echo "Ошибка при создании директории"; exit 1; }
 
-# Создание файла конфигурации для сенсорного экрана
+# Создание файла конфигурации для сенсорного экрана (X11)
 echo "Создание файла конфигурации 99-calibration.conf..."
 cat > /etc/X11/xorg.conf.d/99-calibration.conf << EOL
 Section "InputClass"
     Identifier "eGalax Touchscreen"
     MatchProduct "eGalax Inc. USB TouchController Touchscreen"
+    MatchDevicePath "/dev/input/event*"
     Driver "evdev"
     Option "Calibration" "0 4095 0 4095"
     Option "SwapAxes" "0"
@@ -65,7 +66,7 @@ fi
 # Создание правил udev для сенсорного экрана
 echo "Создание файла правил udev 99-touchscreen.rules..."
 cat > /etc/udev/rules.d/99-touchscreen.rules << EOL
-ACTION=="add", SUBSYSTEM=="input", ATTRS{idVendor}=="0eef", ATTRS{idProduct)=="0001", ENV{ID_INPUT}="1", ENV{ID_INPUT_TOUCHSCREEN}="1"
+ACTION=="add", SUBSYSTEM=="input", ATTRS{idVendor}=="0eef", ATTRS{idProduct}=="0001", ENV{ID_INPUT}="1", ENV{ID_INPUT_TOUCHSCREEN}="1"
 EOL
 if [[ $? -ne 0 ]]; then
     echo "Ошибка при создании файла правил udev"
@@ -93,8 +94,10 @@ done
 # Проверка активности сенсорного экрана
 if [ -n "$TOUCH_DEVICE" ]; then
     echo "Проверка активности сенсорного экрана на $TOUCH_DEVICE..."
-    if command -v evtest >/dev/null && sudo evtest "$TOUCH_DEVICE" --grab --timeout=1 2>/dev/null; then
-        echo "Сенсорный экран активен и отвечает."
+    if command -v libinput >/dev/null && libinput list-devices | grep -q "$TOUCH_DEVICE"; then
+        echo "Сенсорный экран активен и распознан libinput (Wayland)."
+    elif command -v evtest >/dev/null && sudo timeout 1 evtest "$TOUCH_DEVICE" >/dev/null 2>&1; then
+        echo "Сенсорный экран активен и отвечает (X11/evdev)."
     else
         echo "Внимание: Сенсорный экран не отвечает на $TOUCH_DEVICE. Попробуйте перезагрузить систему."
     fi
